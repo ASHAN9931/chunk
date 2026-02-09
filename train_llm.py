@@ -15,7 +15,7 @@ from trl import SFTTrainer
 import json
 
 # --- Configuration ---
-MODEL_NAME = "mistralai/Mistral-7B-v0.1" # Example model, can be changed to Llama-3, etc.
+MODEL_NAME = "mistralai/Mistral-7B-v0.1"
 DATASET_PATH = "training_data.jsonl"
 OUTPUT_DIR = "./results"
 LORA_R = 64
@@ -45,7 +45,6 @@ def check_gpu():
     if vram_gb < 11:
         print("⚠️ WARNING: Low VRAM detected.")
         print("You have less than 12GB of VRAM. Training might fail with 'Out of Memory' errors.")
-        print("Try reducing 'per_device_train_batch_size' or 'max_seq_length' in the script if it fails.")
 
     return True
 
@@ -74,7 +73,7 @@ def train():
     )
 
     # 3. Load Model
-    print(f"🚀 Loading model: {MODEL_NAME} (this may take a while...)")
+    print(f"🚀 Loading model: {MODEL_NAME}")
     model = AutoModelForCausalLM.from_pretrained(
         MODEL_NAME,
         quantization_config=bnb_config,
@@ -105,18 +104,18 @@ def train():
         per_device_train_batch_size=4,
         gradient_accumulation_steps=1,
         optim="paged_adamw_32bit",
-        save_steps=25,
-        logging_steps=25,
+        save_steps=50,
+        logging_steps=10,
         learning_rate=2e-4,
         weight_decay=0.001,
-        fp16=False,
+        fp16=True, # Enabled for Colab T4 GPU
         bf16=False,
         max_grad_norm=0.3,
         max_steps=-1,
         warmup_ratio=0.03,
         group_by_length=True,
         lr_scheduler_type="constant",
-        report_to="tensorboard"
+        report_to="none"
     )
 
     # 7. Initialize SFTTrainer
@@ -125,7 +124,7 @@ def train():
         train_dataset=dataset,
         peft_config=peft_config,
         dataset_text_field="text",
-        max_seq_length=512,
+        max_seq_length=1024, # Increased for better page context
         tokenizer=tokenizer,
         args=training_arguments,
         packing=False,

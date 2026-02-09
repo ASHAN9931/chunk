@@ -32,30 +32,31 @@ def extract_text_from_pdfs(pdf_folder, output_file):
         return
 
     print(f"📄 Found {len(pdf_files)} PDF files. Starting extraction...")
-    all_text = []
+    all_text_entries = []
 
     for pdf_file in tqdm(pdf_files, desc="Extracting text"):
         pdf_path = os.path.join(pdf_folder, pdf_file)
         try:
             doc = fitz.open(pdf_path)
-            text = ""
-            for page in doc:
-                text += page.get_text()
+            # Extract each page as a separate training entry to avoid truncation
+            for page_num in range(len(doc)):
+                page = doc[page_num]
+                text = page.get_text().strip()
 
-            if text.strip():
-                all_text.append({
-                    "source": pdf_file,
-                    "text": text
-                })
+                if text:
+                    all_text_entries.append({
+                        "source": f"{pdf_file}_page_{page_num+1}",
+                        "text": text
+                    })
             doc.close()
         except Exception as e:
             print(f"\n❌ Error processing {pdf_file}: {e}")
 
-    if all_text:
+    if all_text_entries:
         with open(output_file, 'w', encoding='utf-8') as f:
-            for entry in all_text:
+            for entry in all_text_entries:
                 f.write(json.dumps(entry, ensure_ascii=False) + '\n')
-        print(f"✅ Successfully extracted text from {len(all_text)} PDFs and saved to {output_file}")
+        print(f"✅ Successfully extracted {len(all_text_entries)} pages from {len(pdf_files)} PDFs and saved to {output_file}")
     else:
         print("⚠️ No text could be extracted from the found PDFs.")
 

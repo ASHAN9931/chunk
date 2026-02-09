@@ -1,84 +1,82 @@
-# LLM Training Guide for Custom Documents
+# LLM Training & Navigation Guide
 
-This guide explains how to fine-tune a Large Language Model (LLM) using the provided PDF documents. We use a technique called **QLoRA** (Quantized Low-Rank Adaptation) which allows fine-tuning on consumer-grade GPUs.
+This guide provides the full "navigation" for training an LLM to focus **only** on your documents. Since you are using an integrated Intel GPU, you will need to use **Google Colab** (a free cloud-based GPU service) for the training step.
 
-## ⚠️ Hardware Requirements
-
-Fine-tuning an LLM requires significant computational power.
-
-### Compatible Hardware
-- **NVIDIA GPU:** You **must** have an NVIDIA GPU with CUDA support.
-- **VRAM:** At least 12GB of VRAM is required for 4-bit fine-tuning of a 7B model (e.g., RTX 3060 12GB, RTX 3090, RTX 4080).
-
-### Incompatible Hardware
-- **Integrated Graphics:** Intel(R) UHD Graphics (e.g., UHD 770), Intel Iris Xe, and AMD Radeon integrated graphics are **NOT** capable of training LLMs locally.
-
-## ☁️ Cloud Alternatives (Recommended)
-
-If your local computer does not meet the hardware requirements (e.g., you have Intel UHD Graphics), you can use free or paid cloud platforms:
-
-1.  **Google Colab:** Provides free access to NVIDIA T4 GPUs.
-2.  **Kaggle Kernels:** Offers 30 hours of free GPU time per week.
+## 🚀 Navigation Overview
+1.  **Locally:** Prepare your data (`extract_text.py`).
+2.  **In the Cloud (Google Colab):** Train your model (`train_llm.py`).
+3.  **Locally/Cloud:** Merge and convert to GGUF (`merge_model.py`).
 
 ---
 
-## 1. Environment Setup
+## ⚠️ Hardware Check (Local)
+As you've seen, local training requires an NVIDIA GPU. Your **Intel UHD Graphics** are great for display but cannot perform the billions of calculations needed for LLM training.
 
-Install the required libraries:
+**Solution:** Follow the Google Colab steps below.
 
+---
+
+## 1. Data Preparation (Local)
+
+Run this on your computer where the PDFs are located:
 ```bash
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
-pip install pymupdf transformers datasets peft bitsandbytes tqdm accelerate trl gguf
+python extract_text.py
 ```
+This will create a file called **`training_data.jsonl`**. This is the only file you need to upload for training.
 
-## 2. Data Preparation
+---
 
-Extract text from your PDF documents:
+## 2. Google Colab Training Walkthrough (Cloud)
 
-```bash
-python3 extract_text.py
-```
+This is how you train without a local NVIDIA GPU:
 
-### 💡 Troubleshooting: "Extracted text from 0 PDFs"
-If you see this message, it means the script couldn't find your files.
-1.  **Check the folder:** Ensure your `.pdf` files are in the **same folder** as the `extract_text.py` script.
-2.  **Check the logs:** The script will print the exact folder path it is searching. Make sure that path is correct.
-3.  **Manual Path:** You can specify the folder path as an argument:
-    ```bash
-    python3 extract_text.py "C:/Users/YourName/Documents/MyPDFs"
-    ```
+1.  **Go to:** [colab.research.google.com](https://colab.research.google.com).
+2.  **Create a New Notebook.**
+3.  **Change Runtime Type:**
+    - Click `Runtime` -> `Change runtime type`.
+    - Select **T4 GPU** (or any available GPU).
+4.  **Upload Files:**
+    - Click the Folder icon 📁 on the left sidebar.
+    - Upload `train_llm.py` and your `training_data.jsonl`.
+5.  **Install Dependencies:**
+    - In a code cell, run:
+      ```bash
+      !pip install torch transformers datasets peft bitsandbytes tqdm accelerate trl
+      ```
+6.  **Start Training:**
+    - In a new cell, run:
+      ```bash
+      !python train_llm.py
+      ```
+7.  **Download Result:**
+    - Once finished, download the `results/final_checkpoint` folder.
 
-## 3. Fine-Tuning the Model
+---
 
-The `train_llm.py` script handles the fine-tuning process:
+## 3. How to "Only Focus" on Your Documents
 
-```bash
-python3 train_llm.py
-```
+To ensure the LLM stays strictly within the context of your legal and environmental documents, you should use a **System Prompt** during inference.
 
-## 4. Exporting to GGUF (for Ollama, LM Studio, etc.)
+In `run_llm.py` or your RAG application, set the system prompt to:
 
-### Step A: Merge the Weights
-```bash
-python3 merge_model.py
-```
+> "You are a specialized assistant for Sri Lankan Agrarian and Environmental law. You must ONLY answer questions based on the provided documents. If the answer is not in the documents, state that you do not know. Do not use any outside knowledge."
 
-### Step B: Convert to GGUF
-Using `llama.cpp`:
-```bash
-python3 convert-hf-to-gguf.py ../results/merged_model --outtype f16 --outfile ../results/my_finetuned_model.gguf
-```
+Fine-tuning teaches the model the *language* of your documents, but the **System Prompt** provides the *rules* for focusing.
 
-## 5. Running Inference
+---
 
-To test your fine-tuned model (non-GGUF version) locally:
+## 4. Exporting to GGUF
 
-```bash
-python3 run_llm.py
-```
+Once you have your trained model:
 
-## Important Note on "Focus Only on These Documents"
+1.  **Merge weights:** Run `python merge_model.py` to combine the adapters.
+2.  **Convert:** Use `llama.cpp`'s `convert-hf-to-gguf.py` as described in previous sections.
 
-Fine-tuning helps the model learn the *style* and *vocabulary* of your documents. However, to ensure the model **only** uses information from these documents and doesn't hallucinate, it is recommended to use a **Retrieval-Augmented Generation (RAG)** approach.
+---
 
-The existing `streamlit_app.py` already implements a RAG system. You can use your fine-tuned model as the backend for that system.
+## 💡 Summary of Files
+- `extract_text.py`: Run this first to get your data ready.
+- `train_llm.py`: Run this on Google Colab to train the AI.
+- `merge_model.py`: Run this after training to prepare for GGUF export.
+- `run_llm.py`: Run this to test your model.
+- `training_data.jsonl`: Your actual data (keep this private).
