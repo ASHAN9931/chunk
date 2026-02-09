@@ -2,15 +2,39 @@
 
 This guide explains how to fine-tune a Large Language Model (LLM) using the provided PDF documents. We use a technique called **QLoRA** (Quantized Low-Rank Adaptation) which allows fine-tuning on consumer-grade GPUs.
 
-## Prerequisites
+## ⚠️ Hardware Requirements
 
-- A GPU with at least 12GB of VRAM (16GB+ recommended).
-- Linux or Windows with WSL2.
-- Python 3.10+.
+Fine-tuning an LLM requires significant computational power.
 
-## 1. Environment Setup
+### Compatible Hardware
+- **NVIDIA GPU:** You **must** have an NVIDIA GPU with CUDA support.
+- **VRAM:** At least 12GB of VRAM is required for 4-bit fine-tuning of a 7B model (e.g., RTX 3060 12GB, RTX 3090, RTX 4080).
 
-Install the required libraries:
+### Incompatible Hardware
+- **Integrated Graphics:** Intel(R) UHD Graphics (e.g., UHD 770), Intel Iris Xe, and AMD Radeon integrated graphics are **NOT** capable of training LLMs.
+- **Insufficient VRAM:** GPUs with less than 12GB of VRAM will likely run out of memory (OOM) during the process.
+
+## ☁️ Cloud Alternatives (Recommended)
+
+If your local computer does not meet the hardware requirements (e.g., you have Intel UHD Graphics), you can use free or paid cloud platforms to train your model:
+
+1.  **Google Colab (Recommended):**
+    - Provides free access to NVIDIA T4 GPUs.
+    - Paid "Colab Pro" gives access to more powerful A100 or L4 GPUs.
+    - You can upload your `extract_text.py`, `train_llm.py`, and your PDFs to a Google Drive folder and run them in a Colab Notebook.
+
+2.  **Kaggle Kernels:**
+    - Offers 30 hours of free NVIDIA P100 or 2xT4 GPU time per week.
+    - Excellent for training small to medium LLMs.
+
+3.  **Hugging Face AutoTrain:**
+    - A no-code solution to fine-tune models directly on the Hugging Face platform.
+
+---
+
+## 1. Environment Setup (Local with NVIDIA GPU)
+
+If you have a compatible NVIDIA GPU, install the required libraries:
 
 ```bash
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
@@ -25,35 +49,24 @@ First, extract the text from your PDF documents. The provided `extract_text.py` 
 python3 extract_text.py
 ```
 
-This will create a `training_data.jsonl` file where each line is a JSON object containing the document's filename and its full text.
-
 ## 3. Fine-Tuning the Model
 
-The `train_llm.py` script handles the fine-tuning process. By default, it uses the Mistral-7B model, but you can change `MODEL_NAME` in the script to another model like `meta-llama/Llama-3-8B`.
-
-Run the training script:
+The `train_llm.py` script handles the fine-tuning process. Run the training script:
 
 ```bash
 python3 train_llm.py
 ```
 
-### What happens during training?
-- **Quantization:** The base model is loaded in 4-bit precision to save memory.
-- **LoRA:** Small trainable "adapter" layers are added to the model. Only these layers are updated during training, making it very efficient.
-- **Saving:** The final adapter weights will be saved in `./results/final_checkpoint`.
-
 ## 4. Running Inference
 
-Once training is complete, you can use `run_llm.py` to chat with your fine-tuned model.
+Once training is complete, use `run_llm.py` to chat with your fine-tuned model.
 
 ```bash
 python3 run_llm.py
 ```
 
-The script loads the base model and then applies your trained LoRA adapters.
-
 ## Important Note on "Focus Only on These Documents"
 
 Fine-tuning helps the model learn the *style* and *vocabulary* of your documents. However, to ensure the model **only** uses information from these documents and doesn't hallucinate, it is recommended to use a **Retrieval-Augmented Generation (RAG)** approach.
 
-The existing `streamlit_app.py` in this repository already implements a RAG system. You can use your fine-tuned model as the backend for that system to get the best of both worlds: domain-specific knowledge from fine-tuning and strict factual grounding from RAG.
+The existing `streamlit_app.py` in this repository already implements a RAG system. You can use your fine-tuned model as the backend for that system.
