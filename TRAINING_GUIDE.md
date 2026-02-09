@@ -20,12 +20,10 @@ If your local computer does not meet the hardware requirements (e.g., you have I
 
 1.  **Google Colab (Recommended):**
     - Provides free access to NVIDIA T4 GPUs.
-    - Paid "Colab Pro" gives access to more powerful A100 or L4 GPUs.
     - You can upload your `extract_text.py`, `train_llm.py`, and your PDFs to a Google Drive folder and run them in a Colab Notebook.
 
 2.  **Kaggle Kernels:**
     - Offers 30 hours of free NVIDIA P100 or 2xT4 GPU time per week.
-    - Excellent for training small to medium LLMs.
 
 3.  **Hugging Face AutoTrain:**
     - A no-code solution to fine-tune models directly on the Hugging Face platform.
@@ -38,12 +36,12 @@ If you have a compatible NVIDIA GPU, install the required libraries:
 
 ```bash
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
-pip install pymupdf transformers datasets peft bitsandbytes tqdm accelerate trl
+pip install pymupdf transformers datasets peft bitsandbytes tqdm accelerate trl gguf
 ```
 
 ## 2. Data Preparation
 
-First, extract the text from your PDF documents. The provided `extract_text.py` script will iterate through all PDFs in the current directory and save the text to `training_data.jsonl`.
+First, extract the text from your PDF documents:
 
 ```bash
 python3 extract_text.py
@@ -51,15 +49,43 @@ python3 extract_text.py
 
 ## 3. Fine-Tuning the Model
 
-The `train_llm.py` script handles the fine-tuning process. Run the training script:
+The `train_llm.py` script handles the fine-tuning process:
 
 ```bash
 python3 train_llm.py
 ```
 
-## 4. Running Inference
+## 4. Exporting to GGUF (for Ollama, LM Studio, etc.)
 
-Once training is complete, use `run_llm.py` to chat with your fine-tuned model.
+To use your model in tools like Ollama or LM Studio, you need to convert it to the **GGUF** format. This is a two-step process.
+
+### Step A: Merge the Weights
+The training process creates "adapters" (LoRA). You must merge these with the base model first:
+
+```bash
+python3 merge_model.py
+```
+This will create a full model in `./results/merged_model`.
+
+### Step B: Convert to GGUF
+You will need the `llama.cpp` repository for this conversion.
+
+1.  **Clone llama.cpp:**
+    ```bash
+    git clone https://github.com/ggerganov/llama.cpp
+    cd llama.cpp
+    pip install -r requirements.txt
+    ```
+
+2.  **Run Conversion:**
+    ```bash
+    python3 convert-hf-to-gguf.py ../results/merged_model --outtype f16 --outfile ../results/my_finetuned_model.gguf
+    ```
+    *Note: You can use `--outtype q8_0` or `q4_k_m` if you want a quantized (smaller) GGUF file.*
+
+## 5. Running Inference
+
+To test your fine-tuned model (non-GGUF version) locally:
 
 ```bash
 python3 run_llm.py
